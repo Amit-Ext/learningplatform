@@ -3,10 +3,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-
-interface AuthError {
-  message: string;
-}
+import { AuthError } from '@supabase/supabase-js'
 
 export default function AuthPage() {
   const [email, setEmail] = useState('')
@@ -28,8 +25,11 @@ export default function AuthPage() {
       if (error) throw error
       router.push('/dashboard')
     } catch (err) {
-      const authError = err as AuthError
-      setError(authError.message)
+      if (err instanceof AuthError) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
     }
   }
 
@@ -46,8 +46,11 @@ export default function AuthPage() {
       if (error) throw error
       setError('Check your email for the confirmation link.')
     } catch (err) {
-      const authError = err as AuthError
-      setError(authError.message)
+      if (err instanceof AuthError) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
     }
   }
 
@@ -61,8 +64,11 @@ export default function AuthPage() {
       if (error) throw error
       router.push('/dashboard')
     } catch (err) {
-      const authError = err as AuthError
-      setError(authError.message)
+      if (err instanceof AuthError) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
     }
   }
 
