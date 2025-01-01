@@ -1,186 +1,136 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Database } from '@/lib/database.types'
+import { createBrowserClient } from '@supabase/ssr'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+interface AuthError {
+  message: string;
+}
 
 export default function AuthPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectedFrom') || '/dashboard'
-  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        router.refresh()
-        router.replace(redirectTo)
-      }
-    }
-    checkSession()
-  }, [redirectTo, router])
-
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-
       if (error) throw error
-      if (data.session) {
-        router.refresh()
-        router.replace(redirectTo)
-      }
-    } catch (error: any) {
-      setError(error.message)
-    } finally {
-      setLoading(false)
+      router.push('/dashboard')
+    } catch (err) {
+      const authError = err as AuthError
+      setError(authError.message)
     }
   }
 
-  const handleSignUp = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            role: 'user'
-          }
         },
       })
-
       if (error) throw error
-
-      alert('Check your email for the confirmation link!')
-    } catch (error: any) {
-      setError(error.message)
-    } finally {
-      setLoading(false)
+      setError('Check your email for the confirmation link.')
+    } catch (err) {
+      const authError = err as AuthError
+      setError(authError.message)
     }
   }
 
-  const handleTestLogin = async () => {
-    setLoading(true)
-    setError(null)
-
+  const handleTestLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: 'admin@example.com',
         password: 'admin123',
       })
-
       if (error) throw error
-      if (data.session) {
-        router.refresh()
-        router.replace(redirectTo)
-      }
-    } catch (error: any) {
-      setError(error.message)
-    } finally {
-      setLoading(false)
+      router.push('/dashboard')
+    } catch (err) {
+      const authError = err as AuthError
+      setError(authError.message)
     }
   }
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome back
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Enter your email to sign in to your account
-          </p>
+    <div className="flex min-h-screen flex-col items-center justify-center py-2">
+      <div className="w-full max-w-md space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight">
+            Sign in to your account
+          </h2>
         </div>
-        <div className="grid gap-6">
-          <form onSubmit={handleSignIn}>
-            <div className="grid gap-2">
-              <div className="grid gap-1">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  placeholder="name@example.com"
-                  type="email"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect="off"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  placeholder="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <Button disabled={loading}>
-                {loading ? 'Loading...' : 'Sign In'}
-              </Button>
-            </div>
-          </form>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or
-              </span>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleSignUp} disabled={loading}>
-            Create Account
-          </Button>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Test Account
-              </span>
-            </div>
-          </div>
-          <Button variant="secondary" onClick={handleTestLogin} disabled={loading}>
-            Sign in as Admin (Test)
-          </Button>
+        <form className="mt-8 space-y-6">
           {error && (
-            <p className="text-sm text-red-500">
-              {error}
-            </p>
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
           )}
-        </div>
+          <input type="hidden" name="remember" value="true" />
+          <div className="-space-y-px rounded-md shadow-sm">
+            <div>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="relative block w-full rounded-t-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="relative block w-full rounded-b-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={handleSignIn}
+              className="group relative flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Sign in
+            </button>
+            <button
+              onClick={handleSignUp}
+              className="group relative flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+            >
+              Create Account
+            </button>
+            <button
+              onClick={handleTestLogin}
+              className="group relative flex w-full justify-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
+            >
+              Sign in as Admin (Test)
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
