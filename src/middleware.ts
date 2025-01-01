@@ -37,6 +37,14 @@ export async function middleware(request: NextRequest) {
 
   // Auth condition
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
+  const isHomePage = request.nextUrl.pathname === '/'
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
+                          request.nextUrl.pathname.startsWith('/courses')
+
+  // Allow access to home page without authentication
+  if (isHomePage) {
+    return response
+  }
 
   if (isAuthPage) {
     if (session) {
@@ -45,7 +53,7 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  if (!session) {
+  if (isProtectedRoute && !session) {
     return NextResponse.redirect(new URL('/auth', request.url))
   }
 
